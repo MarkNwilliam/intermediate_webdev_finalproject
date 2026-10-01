@@ -1,28 +1,36 @@
 'use strict';
 
 /**
- * Interest Rate Calculator - business logic.
+ * Interest Rate Calculator.
  *
- * The browser hands every input to us as a *string*. Arithmetic on strings
- * performs character concatenation ("100" + 5 === "1005") and produces NaN for
- * comparisons, which is what caused the original TypeErrors. Every value is
- * therefore converted with parseFloat() and validated before it is used.
+ * Simple interest is calculated as (principal * rate * time) / 100, and the
+ * total amount is the principal plus that interest.
  *
- * calculate() accepts strings, numbers or anything parseFloat understands, so
- * it is safe to call directly from the DOM or from the Jasmine specs.
+ * Every value read from the page is a string, so each one is converted with
+ * parseFloat() before it is used. Reading a value that is missing or blank
+ * would otherwise throw a TypeError on toFixed(), which is the failure this
+ * script is required to prevent.
  */
 
+const currency = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 /**
- * Converts a raw input value to a number.
+ * Converts a raw field value to a number.
  *
- * @param {string|number} value Raw value, typically an input's .value string.
+ * @param {string|number} value Raw value, typically input.value.
  * @returns {number} The parsed number.
- * @throws {TypeError} If the value is blank or cannot be parsed.
+ * @throws {TypeError} If the value is blank or cannot be parsed as a number.
  */
 function toNumber(value) {
-  // Number('') is 0 and Number(null) is 0, so blanks must be rejected first.
+  // parseFloat('') is NaN, but an empty string must be rejected with a clear
+  // message rather than producing a misleading result.
   if (value === null || value === undefined || String(value).trim() === '') {
-    throw new TypeError('Value is required and must be a number.');
+    throw new TypeError('Please enter a valid number for every field.');
   }
 
   const parsed = parseFloat(value);
@@ -35,59 +43,32 @@ function toNumber(value) {
 }
 
 /**
- * Compound-interest projection.
+ * Calculates simple interest and the total amount.
  *
- * Interest compounds monthly: each month the opening balance earns interest and
- * then the monthly contribution is added.
- *
- * @param {string|number} principal         Initial deposit.
- * @param {string|number} monthlyContribution Amount added every month.
- * @param {string|number} annualRate        Annual interest rate in percent.
- * @param {string|number} years             Term in years.
- * @returns {{futureValue: number, totalInterest: number, totalPayments: number, monthlyInterestEarned: number}}
+ * @param {string|number} principal Principal amount.
+ * @param {string|number} rate      Annual interest rate as a percentage.
+ * @param {string|number} time      Term in years.
+ * @returns {{principal: number, simpleInterest: number, amount: number}}
  */
-function calculate(principal, monthlyContribution, annualRate, years) {
-  // Convert every input to a number before it is used in any calculation.
+function computeInterest(principal, rate, time) {
   const p = toNumber(principal);
-  const monthly = toNumber(monthlyContribution);
-  const rate = toNumber(annualRate);
-  const term = toNumber(years);
+  const r = toNumber(rate);
+  const t = toNumber(time);
 
-  if (p < 0 || monthly < 0 || rate < 0 || term < 0) {
+  if (p < 0 || r < 0 || t < 0) {
     throw new RangeError('Values cannot be negative.');
   }
 
-  // Annual percentage -> monthly decimal rate.
-  const monthlyRate = rate / 100 / 12;
-  const months = Math.round(term * 12);
+  const simpleInterest = (p * r * t) / 100;
 
-  let balance = p;
-  for (let month = 0; month < months; month += 1) {
-    balance = balance + balance * monthlyRate + monthly;
-  }
-
-  const totalPayments = p + monthly * months;
-  const futureValue = Math.round(balance * 100) / 100;
-  const totalInterest = Math.round((futureValue - totalPayments) * 100) / 100;
+  // The total amount is the principal plus the interest earned.
+  const amount = p + simpleInterest;
 
   return {
-    futureValue: futureValue,
-    totalInterest: totalInterest,
-    totalPayments: totalPayments,
-    monthlyInterestEarned: months === 0 ? 0 : Math.round((totalInterest / months) * 100) / 100,
+    principal: Math.round(p * 100) / 100,
+    simpleInterest: Math.round(simpleInterest * 100) / 100,
+    amount: Math.round(amount * 100) / 100,
   };
-}
-
-const currency = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function setResult(id, value) {
-  const node = document.getElementById(id);
-  if (node) node.textContent = currency.format(value);
 }
 
 function showError(message) {
@@ -97,43 +78,42 @@ function showError(message) {
   node.hidden = message === '';
 }
 
-function handleSubmit(event) {
-  if (event && typeof event.preventDefault === 'function') event.preventDefault();
-
-  // Read the raw strings, then let calculate() convert them.
-  const readValue = (id) => {
-    const input = document.getElementById(id);
-    return input ? input.value : '';
-  };
+/**
+ * Reads the form, calculates the result and renders it into #result.
+ *
+ * Called by the Calculate button's onclick handler.
+ */
+function calculate() {
+  const resultNode = document.getElementById('result');
 
   try {
-    const result = calculate(
-      readValue('initial-investment'),
-      readValue('monthly-contribution'),
-      readValue('annual-interest-rate'),
-      readValue('investment-years')
-    );
+    const p = document.getElementById('principal').value;
+    const r = document.getElementById('rate').value;
+    const t = document.getElementById('time').value;
+
+    const { principal, simpleInterest, amount } = computeInterest(p, r, t);
 
     showError('');
-    setResult('future-value', result.futureValue);
-    setResult('total-interest', result.totalInterest);
-    setResult('total-payments', result.totalPayments);
-    setResult('monthly-interest', result.monthlyInterestEarned);
+
+    if (resultNode) {
+      resultNode.innerHTML =
+        '<div class="result-row"><span>Principal Amount:</span><span>' +
+        currency.format(principal) +
+        '</span></div>' +
+        '<div class="result-row"><span>Total Interest:</span><span>' +
+        currency.format(simpleInterest) +
+        '</span></div>' +
+        '<div class="result-row"><span>Total Amount:</span><span>' +
+        currency.format(amount) +
+        '</span></div>';
+    }
   } catch (error) {
     showError(error.message);
+    if (resultNode) resultNode.innerHTML = '';
   }
 }
 
-// Only wire up the DOM in a browser; the specs import calculate() under Node.
-if (typeof document !== 'undefined') {
-  const form = document.getElementById('calculator-form');
-  const button = document.getElementById('calculate-button');
-
-  if (form) form.addEventListener('submit', handleSubmit);
-  if (button) button.addEventListener('click', handleSubmit);
-}
-
-// Exported for the Jasmine specs and for the Webpack bundle.
+// Exported for the Jasmine specs; also a global so onclick="calculate()" works.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { calculate: calculate, toNumber: toNumber };
+  module.exports = { calculate, computeInterest, toNumber };
 }

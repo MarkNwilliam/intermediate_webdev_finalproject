@@ -36,26 +36,14 @@ h1 {
   font-size: 1.6rem;
 }
 
-h2 {
-  margin: 24px 0 12px;
-  font-size: 1.1rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.field {
-  margin-bottom: 14px;
-}
-
-.field label {
+.wrapper label {
   display: block;
   margin-bottom: 6px;
   font-size: 0.9rem;
   font-weight: 600;
 }
 
-.field input {
+.wrapper input {
   width: 100%;
   padding: 10px 12px;
   font-size: 1rem;
@@ -63,7 +51,7 @@ h2 {
   border-radius: 6px;
 }
 
-.field input:focus {
+.wrapper input:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -85,24 +73,40 @@ button:hover {
   background: var(--accent-dark);
 }
 
-.results dl {
-  margin: 0;
+.subtitle {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.input-wrapper {
+  margin-bottom: 14px;
+}
+
+#result {
+  margin-top: 20px;
+}
+
+#result:empty {
+  display: none;
 }
 
 .result-row {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid #e5e7eb;
-}
-
-.result-row dt {
   color: var(--muted);
 }
 
-.result-row dd {
-  margin: 0;
+.result-row:last-child {
+  border-bottom: none;
+  color: var(--text);
   font-weight: 700;
+}
+
+.result-row span:last-child {
   font-variant-numeric: tabular-nums;
 }
 
